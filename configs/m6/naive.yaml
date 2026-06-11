@@ -1,0 +1,14 @@
+# M6 Naive benchmark recipe
+model:
+  kind: naive
+  description: "Equal probability (0.2) for all five quintiles"
+
+task:
+  id_col: unique_id
+  time_col: ds
+  target_col: y
+  horizon: 20
+
+cv:
+  n_windows: 6
+  step_size: 20

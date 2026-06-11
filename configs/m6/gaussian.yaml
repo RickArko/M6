@@ -1,0 +1,17 @@
+# M6 Multivariate Gaussian model recipe
+model:
+  kind: gaussian
+  description: "Multivariate normal with shrinkage covariance, MC simulated quintile probabilities"
+  n_simulations: 100000
+  covariance_shrinkage: 0.3
+  min_history_days: 252
+
+task:
+  id_col: unique_id
+  time_col: ds
+  target_col: y
+  horizon: 20
+
+cv:
+  n_windows: 6
+  step_size: 20

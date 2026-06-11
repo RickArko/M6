@@ -1,0 +1,16 @@
+# M6 Historical-frequency model recipe
+model:
+  kind: historical
+  description: "Empirical quintile frequencies per asset, blended with pooled frequencies"
+  min_obs: 10
+  use_pooled: true
+
+task:
+  id_col: unique_id
+  time_col: ds
+  target_col: y
+  horizon: 20
+
+cv:
+  n_windows: 6
+  step_size: 20
