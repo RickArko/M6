@@ -51,7 +51,7 @@ M6_TICKERS = [
     "CZR",
     "DG",
     "DPZ",
-    "DRE",
+    "O",
     "DXC",
     "FTV",
     "GOOG",
@@ -72,7 +72,7 @@ M6_TICKERS = [
     "URI",
     "V",
     "VRSK",
-    "WRK",
+    "IP",
     "XOM",
     "EWA",
     "EWC",
@@ -107,7 +107,7 @@ M6_TICKERS = [
     "LQD",
     "MCHI",
     "MVEU.L",
-    "RE",
+    "EG",
     "REET",
     "SEGA.L",
     "SHY",
@@ -154,7 +154,7 @@ for t in [
     "IXN",
     "LQD",
     "MCHI",
-    "RE",
+    "EG",
     "REET",
     "SHY",
     "SLV",
@@ -284,9 +284,9 @@ def assign_quintiles(df: pd.DataFrame) -> pd.DataFrame:
     df = df.sort_values(["ds", "unique_id"]).copy()
 
     def _assign(group: pd.Series) -> pd.Series:
-        r = group.rank(method="average", ascending=True)
+        r = group.rank(method="first", ascending=True)
         n = len(r)
-        return ((r - 1) / n * 5 + 1).clip(1, 5)
+        return pd.Series(np.ceil(r / n * 5).clip(1, 5), index=r.index)
 
     df["quintile"] = df.groupby("ds", observed=True)["return_fwd"].transform(_assign).astype(np.float32)
     return df

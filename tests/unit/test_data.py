@@ -81,7 +81,7 @@ def test_tickers_list_has_stocks_and_etfs() -> None:
             "IXN",
             "LQD",
             "MCHI",
-            "RE",
+            "EG",
             "REET",
             "SHY",
             "SLV",

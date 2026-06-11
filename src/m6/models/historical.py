@@ -19,7 +19,7 @@ def _compute_quintile_frequencies(
     *,
     id_col: str = "unique_id",
     time_col: str = "ds",
-    target_col: str = "y",
+    target_col: str = "quintile",
     use_pooled: bool = True,
 ) -> pd.DataFrame:
     """Compute per-asset (and optionally pooled) quintile frequencies.
@@ -28,6 +28,10 @@ def _compute_quintile_frequencies(
     If an asset has no history, the pooled frequencies are used.
     """
     hist = df[df[time_col] <= cutoff].copy()
+    if hist.empty:
+        return pd.DataFrame()
+
+    hist = hist.dropna(subset=[target_col])
     if hist.empty:
         return pd.DataFrame()
 
@@ -79,7 +83,7 @@ def predict_historical(
     *,
     id_col: str = "unique_id",
     time_col: str = "ds",
-    target_col: str = "y",
+    target_col: str = "quintile",
 ) -> pd.DataFrame:
     """Predict quintile probabilities from historical frequencies.
 

@@ -38,7 +38,7 @@ def _estimate_moments(
         return None
 
     pivot = hist.pivot_table(index=time_col, columns=id_col, values=target_col)
-    pivot = pivot.dropna(how="any", axis=1)
+    pivot = pivot.fillna(0.0)
 
     if pivot.shape[1] < 2:
         return None
