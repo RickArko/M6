@@ -45,6 +45,11 @@ class Settings:
     end_date: str = field(default_factory=lambda: os.getenv("M6_END_DATE", "2023-02-28"))
     covariance_shrinkage: float = field(default_factory=lambda: _env_float("M6_COV_SHRINKAGE", 0.3))
     n_monte_carlo: int = field(default_factory=lambda: _env_int("M6_N_MC", 100_000))
+    ewma_halflife: int = field(default_factory=lambda: _env_int("M6_EWMA_HALFLIFE", 63))
+    mom_window: int = field(default_factory=lambda: _env_int("M6_MOM_WINDOW", 20))
+    mom_strength: float = field(default_factory=lambda: _env_float("M6_MOM_STRENGTH", 0.05))
+    tilt_strength: float = field(default_factory=lambda: _env_float("M6_TILT_STRENGTH", 0.03))
+    calib_strength: float = field(default_factory=lambda: _env_float("M6_CALIB_STRENGTH", 0.15))
 
     @property
     def raw_dir(self) -> Path:

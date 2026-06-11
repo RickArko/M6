@@ -4,7 +4,7 @@
 .DEFAULT_GOAL := help
 .PHONY: help bootstrap install activate lint fmt typecheck test test-smoke test-unit \
         test-integration test-fast cov check \
-        download prep cv-naive cv-historical cv-gaussian cv-recipe \
+        download prep cv-naive cv-historical cv-gaussian cv-ensemble cv-recipe \
         score score-all notebook viz clean clean-all
 
 UV       ?= uv
@@ -97,6 +97,9 @@ cv-historical: ## Cross-validate the historical-frequency model
 cv-gaussian: ## Cross-validate the multivariate Gaussian model
 	$(UV) run m6 cv gaussian --horizon $(HORIZON) --n-windows $(WINDOWS)
 
+cv-ensemble: ## Cross-validate the ensemble (gaussian + historical) model
+	$(UV) run m6 cv ensemble --horizon $(HORIZON) --n-windows $(WINDOWS)
+
 cv-recipe: ## Cross-validate from a YAML recipe (RECIPE=configs/m6/gaussian.yaml)
 	$(UV) run m6 cv-recipe $(RECIPE) --horizon $(HORIZON) --n-windows $(WINDOWS)
 
@@ -115,7 +118,7 @@ score-all: ## Score every CV artifact found in artifacts/ (cv_<name>.parquet)
 	for m in $$models; do CMD="$$CMD --model $$m"; done; \
 	echo "$$CMD"; eval $$CMD
 
-eval: cv-naive cv-historical cv-gaussian score ## End-to-end: all models CV, then score
+eval: cv-naive cv-historical cv-gaussian cv-ensemble score ## End-to-end: all models CV, then score
 
 # ---- Visualisation -------------------------------------------------
 

@@ -83,13 +83,13 @@ def prep(
 
 @app.command()
 def cv(
-    model: str = typer.Argument("naive", help="One of: naive, historical, gaussian."),
+    model: str = typer.Argument("naive", help="One of: naive, historical, gaussian, ensemble."),
     horizon: int = typer.Option(SETTINGS.horizon),
     n_windows: int = typer.Option(SETTINGS.n_windows),
     long_path: Path = typer.Option(None, help="Path to processed long parquet."),
 ) -> None:
     """Run reproducible rolling-origin cross-validation."""
-    from m6.cv import gaussian_cv, historical_cv, naive_cv
+    from m6.cv import ensemble_cv, gaussian_cv, historical_cv, naive_cv
     from m6.evaluation import rps_for_models
 
     long_path = long_path or SETTINGS.processed_dir / "long.parquet"
@@ -100,10 +100,13 @@ def cv(
         "naive": naive_cv,
         "historical": historical_cv,
         "gaussian": gaussian_cv,
+        "ensemble": ensemble_cv,
     }
     cv_fn = model_map.get(model)
     if cv_fn is None:
-        raise typer.BadParameter(f"Unknown model: {model!r}. Use 'naive', 'historical', or 'gaussian'.")
+        raise typer.BadParameter(
+            f"Unknown model: {model!r}. Use 'naive', 'historical', 'gaussian', or 'ensemble'."
+        )
 
     cv_df = cv_fn(df, h=horizon, n_windows=n_windows)
     truth = cv_df[["unique_id", "ds", "y"]].copy()

@@ -18,6 +18,7 @@ from m6.config import SETTINGS, set_global_seed
 from m6.data import make_cv_cutoffs
 from m6.evaluation import N_QUINTILES
 from m6.logging import logger
+from m6.models.ensemble import predict_ensemble
 from m6.models.gaussian import predict_gaussian
 from m6.models.historical import predict_historical
 from m6.models.naive import predict_naive
@@ -136,3 +137,13 @@ def gaussian_cv(
 ) -> pd.DataFrame:
     """CV for the multivariate Gaussian model."""
     return _run_cv_for_model(df, "gaussian", h=h, n_windows=n_windows, model_fn=predict_gaussian)
+
+
+def ensemble_cv(
+    df: pd.DataFrame,
+    *,
+    h: int = SETTINGS.horizon,
+    n_windows: int = SETTINGS.n_windows,
+) -> pd.DataFrame:
+    """CV for the ensemble (gaussian + historical) model."""
+    return _run_cv_for_model(df, "ensemble", h=h, n_windows=n_windows, model_fn=predict_ensemble)

@@ -1,16 +1,18 @@
 """Historical-frequency model — predicts quintile probabilities from past frequencies.
 
 For each asset, the probability of landing in each quintile is estimated as
-the historical frequency observed prior to the cutoff date. This captures
-asset-specific biases (e.g., high-volatility assets appear in extreme
-quintiles more often).
+the historical frequency observed prior to the cutoff date. Recent observations
+are weighted more heavily (EWMA decay).
 
 A pooled variant uses all-asset frequencies when per-asset data is sparse.
 """
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
+
+from m6.config import SETTINGS
 
 
 def _compute_quintile_frequencies(
@@ -21,8 +23,9 @@ def _compute_quintile_frequencies(
     time_col: str = "ds",
     target_col: str = "quintile",
     use_pooled: bool = True,
+    halflife: int | None = None,
 ) -> pd.DataFrame:
-    """Compute per-asset (and optionally pooled) quintile frequencies.
+    """Compute per-asset (and optionally pooled) EWMA-weighted quintile frequencies.
 
     Returns a DataFrame with columns: unique_id, p1-p5
     If an asset has no history, the pooled frequencies are used.
@@ -35,40 +38,52 @@ def _compute_quintile_frequencies(
     if hist.empty:
         return pd.DataFrame()
 
-    quintiles = hist[target_col].round().astype(int).clip(1, 5)
+    hl = halflife if halflife is not None else SETTINGS.ewma_halflife
+    days_ago = (cutoff - hist[time_col]).dt.days
+    hist["_w"] = np.exp(-days_ago / (hl * 5))
+    hist["_w"] /= hist["_w"].sum()
 
-    freq = (
-        hist[[id_col]]
-        .assign(_q=quintiles)
-        .groupby(id_col)["_q"]
-        .value_counts(normalize=True)
-        .reset_index(name="prob")
-    )
-    per_asset = freq.pivot_table(index=id_col, columns="_q", values="prob", fill_value=0)
+    quintile_vals = hist[target_col].round().astype(int).clip(1, 5)
 
-    for q in range(1, 6):
-        if q not in per_asset.columns:
-            per_asset[q] = 0.0
-    per_asset = per_asset[sorted(per_asset.columns)]
+    temp = hist[[id_col]].assign(_q=quintile_vals, _w=hist["_w"])
+    per_asset_rows = []
+    for _, grp in temp.groupby(id_col, sort=False):
+        w = grp["_w"].to_numpy()
+        q = grp["_q"].to_numpy()
+        counts = np.zeros(5, dtype=np.float64)
+        for qi in range(1, 6):
+            mask = q == qi
+            counts[qi - 1] = w[mask].sum()
+        prob = counts / counts.sum() if counts.sum() > 0 else np.full(5, 0.2)
+        per_asset_rows.append(prob)
+    per_asset = pd.DataFrame(
+        per_asset_rows,
+        index=temp[id_col].unique(),
+        columns=[1, 2, 3, 4, 5],
+    ).fillna(0.0)
 
     if use_pooled:
-        pooled = quintiles.value_counts(normalize=True).reindex(range(1, 6), fill_value=0.2)
-        pooled_probs = pooled.to_numpy()
+        all_w = hist["_w"].to_numpy()
+        pooled = np.zeros(5, dtype=np.float64)
+        for qi in range(1, 6):
+            mask = quintile_vals == qi
+            pooled[qi - 1] = all_w[mask].sum()
+        pooled = pooled / pooled.sum() if pooled.sum() > 0 else np.full(5, 0.2)
 
         rows = []
         for uid in hist[id_col].unique():
             if uid in per_asset.index:
                 probs = per_asset.loc[uid].to_numpy()
                 min_obs = 10
-                n_obs = (hist[hist[id_col] == uid][time_col] <= cutoff).sum()
+                n_obs = len(hist[hist[id_col] == uid])
                 if n_obs >= min_obs:
                     rows.append({"unique_id": uid, **{f"p{i + 1}": probs[i] for i in range(5)}})
                 else:
                     alpha = n_obs / min_obs
-                    blended = alpha * probs + (1 - alpha) * pooled_probs
+                    blended = alpha * probs + (1 - alpha) * pooled
                     rows.append({"unique_id": uid, **{f"p{i + 1}": blended[i] for i in range(5)}})
             else:
-                rows.append({"unique_id": uid, **{f"p{i + 1}": pooled_probs[i] for i in range(5)}})
+                rows.append({"unique_id": uid, **{f"p{i + 1}": pooled[i] for i in range(5)}})
         return pd.DataFrame(rows)
     else:
         per_asset.columns = [f"p{i}" for i in range(1, 6)]
@@ -85,7 +100,7 @@ def predict_historical(
     time_col: str = "ds",
     target_col: str = "quintile",
 ) -> pd.DataFrame:
-    """Predict quintile probabilities from historical frequencies.
+    """Predict quintile probabilities from EWMA-weighted historical frequencies.
 
     Args:
         df: Full long frame with price history and quintile assignments.
