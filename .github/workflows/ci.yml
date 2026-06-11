@@ -1,40 +1,128 @@
-name: CI
+name: M6 CI
 
 on:
+  pull_request:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: m6-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.12"
 
 jobs:
-  check:
+  quality:
+    name: Lint & Typecheck
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.12"]
-
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v7
         with:
-          python-version: ${{ matrix.python-version }}
+          enable-cache: true
 
-      - name: Sync deps
-        run: uv sync --all-groups
+      - name: Install dependencies
+        run: uv sync --group dev
 
-      - name: Lint
+      - name: Ruff lint
         run: uv run ruff check .
 
-      - name: Type check
+      - name: Mypy
         run: uv run mypy
 
-      - name: Test (fast)
-        run: uv run pytest -m "smoke or unit" --no-cov -q
+      - name: Summarize
+        if: always()
+        run: |
+          {
+            echo "## Lint & Typecheck"
+            echo "- Ruff lint: ${{ job.status }}"
+            echo "- Mypy on \`src/m6\`: ${{ job.status }}"
+          } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Build
+  test:
+    name: Pytest (smoke + unit + integration)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --all-groups
+
+      - name: Run pytest
+        run: uv run pytest --cov --cov-report=term-missing
+
+      - name: Summarize
+        if: always()
+        run: |
+          {
+            echo "## Tests"
+            echo "- pytest: ${{ job.status }}"
+            echo "- Commit: \`${{ github.sha }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  build:
+    name: Build wheel & verify install
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Build sdist + wheel
         run: uv build
 
-      - name: Verify install
-        run: uv pip install dist/m6-*.whl --quiet && python -c "import m6; print(m6.__version__)"
+      - name: Install wheel in a clean venv
+        run: |
+          uv venv /tmp/verify-venv
+          . /tmp/verify-venv/bin/activate
+          uv pip install dist/m6-*.whl
+          python -c "import m6; print('m6 version:', m6.__version__)"
+          m6 --help
+
+      - name: Upload distribution artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: m6-dist-${{ github.sha }}
+          path: dist/*
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Summarize
+        if: always()
+        run: |
+          {
+            echo "## Package Build"
+            echo "- \`uv build\`: ${{ job.status }}"
+            echo "- Wheel install + import + CLI smoke: ${{ job.status }}"
+            echo "- Artifacts uploaded as \`m6-dist-${{ github.sha }}\` (14d retention)"
+          } >> "$GITHUB_STEP_SUMMARY"

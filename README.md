@@ -1,6 +1,11 @@
 # M6 Forecasting Uncertainty
 
-<!-- TEMPORARY placeholder — will add pipeline GIF when viz module is done -->
+[![CI](https://github.com/RickArko/M6/actions/workflows/ci.yml/badge.svg)](https://github.com/RickArko/M6/actions/workflows/ci.yml)
+[![Python 3.12](https://img.shields.io/badge/python-3.12-blue?logo=python)](https://www.python.org/)
+[![Ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
+[![uv](https://img.shields.io/badge/package-manager-uv-6C26A4?logo=uv)](https://docs.astral.sh/uv/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![M6 Competition](https://img.shields.io/badge/M6-Forecasting%20Uncertainty-8A2BE2)](https://www.unic.ac.cy/iff/research/forecasting/m-competitions/m6/)
 
 Reproducible solution for the [M6 Forecasting Competition](https://www.unic.ac.cy/iff/research/forecasting/m-competitions/m6/),
 focused on **probabilistic (quintile) forecasting** for 100 financial assets using the
