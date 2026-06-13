@@ -122,8 +122,8 @@ eval: cv-naive cv-historical cv-gaussian cv-ensemble score ## End-to-end: all mo
 
 # ---- Visualisation -------------------------------------------------
 
-viz: ## Render pipeline visualisation (placeholder)
-	@echo "Viz not yet implemented for M6."
+viz: ## Render pipeline visualisation (animated GIF → assets/pipeline.gif)
+	$(UV) run m6 viz
 
 # ---- Notebooks -----------------------------------------------------
 

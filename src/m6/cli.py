@@ -245,6 +245,26 @@ def score(
 
 
 @app.command()
+def viz(
+    out_dir: Path = typer.Option(None, help="Output directory (default: assets/)."),
+    gif: bool = typer.Option(True, "--gif/--no-gif", help="Render animated GIF."),
+    gif_fps: int = typer.Option(12, "--gif-fps", help="GIF frame rate."),
+    gif_duration: float = typer.Option(8.0, "--gif-duration", help="GIF loop duration (seconds)."),
+) -> None:
+    """Render pipeline visualisation (animated GIF)."""
+    from m6.viz import render_pipeline_viz
+
+    paths = render_pipeline_viz(
+        out_dir=out_dir,
+        gif=gif,
+        gif_fps=gif_fps,
+        gif_duration=gif_duration,
+    )
+    for kind, p in paths.items():
+        logger.info(f"viz: {kind} -> {p}")
+
+
+@app.command()
 def forecast(
     model: str = typer.Argument("naive", help="One of: naive, historical, gaussian."),
     horizon: int = typer.Option(SETTINGS.horizon),

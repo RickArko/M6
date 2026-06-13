@@ -11,6 +11,11 @@ Reproducible solution for the [M6 Forecasting Competition](https://www.unic.ac.c
 focused on **probabilistic (quintile) forecasting** for 100 financial assets using the
 **Ranked Probability Score (RPS)**.
 
+![M6 pipeline — CV scores and model comparison](assets/pipeline.gif)
+
+> Regenerate with `make viz` (after `make score`) — draws RPS bar chart + per-fold line chart
+> from `reports/metrics/headline.csv` and `reports/metrics/per_fold.parquet`.
+
 The M6 competition differed from earlier M competitions by asking for **relative rankings**
 across assets rather than point forecasts of individual time series. Participants predicted
 which quintile (1 = worst, 5 = best) each of 100 assets would fall into over the next 4 weeks.
