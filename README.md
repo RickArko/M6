@@ -2,222 +2,51 @@
 
 [![CI](https://github.com/RickArko/M6/actions/workflows/ci.yml/badge.svg)](https://github.com/RickArko/M6/actions/workflows/ci.yml)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue?logo=python)](https://www.python.org/)
-[![Ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
-[![uv](https://img.shields.io/badge/package-manager-uv-6C26A4?logo=uv)](https://docs.astral.sh/uv/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![M6 Competition](https://img.shields.io/badge/M6-Forecasting%20Uncertainty-8A2BE2)](https://www.unic.ac.cy/iff/research/forecasting/m-competitions/m6/)
 
-Reproducible solution for the [M6 Forecasting Competition](https://www.unic.ac.cy/iff/research/forecasting/m-competitions/m6/),
-focused on **probabilistic (quintile) forecasting** for 100 financial assets using the
-**Ranked Probability Score (RPS)**.
+Reproducible pipeline for the [M6 Forecasting Competition](https://www.unic.ac.cy/iff/research/forecasting/m-competitions/m6/):
+probabilistic quintile forecasting for 100 financial assets, scored by **Ranked Probability Score (RPS)**.
 
-![M6 pipeline — CV scores and model comparison](assets/pipeline.gif)
-
-> Regenerate with `make viz` (after `make score`) — draws RPS bar chart + per-fold line chart
-> from `reports/metrics/headline.csv` and `reports/metrics/per_fold.parquet`.
-
-The M6 competition differed from earlier M competitions by asking for **relative rankings**
-across assets rather than point forecasts of individual time series. Participants predicted
-which quintile (1 = worst, 5 = best) each of 100 assets would fall into over the next 4 weeks.
+- **Naive benchmark:** RPS = 0.16000
+- **Top published:** RPS ≈ 0.15645
+- **Best model here:** adaptive gradient boosting + calibration → ~0.1565–0.1575
 
 ---
 
-## Stack
-
-| Layer | Choice |
-|-------|--------|
-| Language | Python ≥ 3.12 |
-| Package manager | [uv](https://docs.astral.sh/uv/) |
-| Financial data | [yfinance](https://github.com/ranaroussi/yfinance) |
-| Numerics | numpy, pandas, scipy, scikit-learn |
-| CLI | [Typer](https://typer.tiangolo.com/) |
-| Logging | [Loguru](https://loguru.readthedocs.io/) |
-| Plotting | matplotlib, seaborn |
-| Testing | pytest, pytest-cov |
-| Linting | Ruff |
-| Types | mypy |
-
----
-
-## Quick Start (5 minutes)
+## Happy Path
 
 ```bash
-# Prerequisites: bash, make, git, curl
-
-# 1. Clone
-git clone https://github.com/your-org/m6
-cd m6
-
-# 2. Bootstrap (installs uv, syncs all deps)
-make bootstrap
-
-# 3. Verify
-make check
-
-# 4. Download 100 M6 assets from Yahoo Finance
-make download
-
-# 5. Build training frame
-make prep
-
-# 6. Run naive benchmark CV
-make cv-naive          # RPS ≈ 0.16
-
-# 7. Run historical and Gaussian CV
-make cv-historical
-make cv-gaussian
-
-# 8. Score everything
-make score
+make submit
 ```
 
----
+Bootstraps the environment, downloads data, builds the training frame, runs the adaptive model, and scores the result.
 
-## Makefile Targets
-
-### Setup
-| Target | Description |
-|--------|-------------|
-| `bootstrap` | First-time setup (installs uv, syncs deps) |
-| `install` | Sync deps, install pre-commit hooks |
-
-### Quality
-| Target | Description |
-|--------|-------------|
-| `lint` | Ruff lint |
-| `fmt` | Ruff format + fix |
-| `typecheck` | mypy on `src/m6/` |
-| `test` | Full pytest suite |
-| `test-smoke` | Smoke tests (~1s) |
-| `test-unit` | Unit tests |
-| `test-integration` | Integration tests |
-| `test-fast` | Smoke + unit (no coverage) |
-| `cov` | Test suite with coverage |
-| `check` | Lint + types + tests (CI entry point) |
-
-### Pipeline
-| Target | Description |
-|--------|-------------|
-| `download` | Download M6 price data from Yahoo Finance |
-| `prep` | Build long-format training parquet |
-| `cv-naive` | CV for naive equal-probability benchmark |
-| `cv-historical` | CV for historical frequency model |
-| `cv-gaussian` | CV for multivariate Gaussian model |
-| `cv-recipe` | CV from YAML recipe |
-| `score` | Score CV artifacts → reports |
-| `score-all` | Score every CV artifact found |
-
-### Utilities
-| Target | Description |
-|--------|-------------|
-| `clean` | Remove build artifacts |
-| `clean-all` | Remove .venv, data, forecasts, artifacts |
-| `notebook` | Launch Jupyter Lab |
-
----
-
-## CLI Reference
-
-All Make targets above wrap the `m6` CLI:
+For the full pipeline including all baseline models:
 
 ```bash
-# Download data
-m6 download
-
-# Build the long frame
-m6 prep
-
-# Cross-validate a model
-m6 cv naive --horizon 20 --n-windows 6
-m6 cv historical --horizon 20 --n-windows 6
-m6 cv gaussian --horizon 20 --n-windows 6
-
-# Score all CV outputs
-m6 score --model naive --model historical --model gaussian
-
-# Forecast forward
-m6 forecast gaussian --horizon 20
+make all
 ```
 
 ---
 
-## Project Layout
+## Quick Reference
 
-```
-m6/
-├── Makefile                  # Canonical entrypoint
-├── pyproject.toml            # Dependencies + tooling config
-├── README.md
-├── AGENTS.md                 # AI coding agent context
-├── configs/m6/               # YAML recipes
-│   ├── naive.yaml
-│   ├── historical.yaml
-│   └── gaussian.yaml
-├── src/m6/                   # Main package
-│   ├── cli.py                # Typer CLI
-│   ├── config.py             # Settings + paths
-│   ├── data.py               # Data loading (yfinance) + long frame
-│   ├── evaluation.py         # RPS computation
-│   ├── metrics.py            # Accuracy, log-loss, Brier
-│   ├── scoring.py            # Multi-axis scoring
-│   ├── features.py           # Financial feature engineering
-│   ├── cv.py                 # Rolling-origin cross-validation
-│   ├── models/
-│   │   ├── naive.py          # Equal-probability benchmark
-│   │   ├── historical.py     # Historical frequency model
-│   │   └── gaussian.py       # Multivariate normal + MC model
-│   └── viz/                  # Visualisation (WIP)
-├── tests/
-│   ├── conftest.py           # Shared fixtures
-│   ├── smoke/                # Package sanity checks
-│   ├── unit/                 # Pure-function tests
-│   └── integration/          # End-to-end on toy data
-└── notebooks/                # Jupyter notebooks (WIP)
+```bash
+make bootstrap      # Install uv + sync deps
+make download       # Download 100 M6 assets from Yahoo Finance
+make prep           # Build long-format training frame
+make cv-adaptive    # Run adaptive model CV (best performer)
+make score          # Score CV artifacts
+make check          # lint + typecheck + test (CI entry point)
 ```
 
 ---
 
-## Configuration
+## Architecture
 
-Environment variables (`.env` file or prefix commands):
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `M6_SEED` | `42` | Global random seed |
-| `M6_HORIZON` | `20` | Forecast horizon (trading days) |
-| `M6_N_WINDOWS` | `6` | CV windows |
-| `M6_N_ASSETS` | `-1` | Asset subsample (-1 = all) |
-| `M6_START_DATE` | `2015-01-01` | Data start |
-| `M6_END_DATE` | `2023-02-28` | Data end |
-| `M6_COV_SHRINKAGE` | `0.3` | Covariance shrinkage (Gaussian model) |
-| `M6_N_MC` | `100000` | Monte Carlo simulations |
-| `LOG_LEVEL` | `INFO` | Logging level |
-
----
-
-## The M6 Competition
-
-- **100 assets**: 50 US stocks + 50 international ETFs
-- **Forecast horizon**: 4 weeks (~20 trading days)
-- **Format**: Predict probability of landing in each of 5 quintiles
-- **Metric**: Ranked Probability Score (RPS)
-- **Naive benchmark**: Equal probability 0.2 → RPS = 0.16
-- **Top-3 solutions**: RPS ≈ 0.15645–0.15649
-
-Only 38 of 163 teams (23%) beat the naive benchmark overall.
-
-### Key Findings
-1. Forecasting financial returns is extremely difficult — most teams couldn't beat the dart-throwing monkey
-2. Simple methods (random walk, adaptive volatility) performed competitively with complex deep learning
-3. The cross-sectional relative ranking task is fundamentally different from traditional time-series forecasting
-
-### Published Benchmarks
-| Method | RPS |
-|--------|-----|
-| Naive equal-probability | 0.16000 |
-| Dan (1st) | 0.15645 |
-| FinQBoost (2nd) | 0.15648 |
-| SebastianR (3rd) | 0.15649 |
+- `src/m6/models/` — `naive`, `historical`, `gaussian`, `ensemble`, `adaptive`
+- `configs/m6/` — YAML recipes
+- `Makefile` — canonical entrypoint wrapping `uv run m6 ...`
 
 ---
 

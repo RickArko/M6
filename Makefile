@@ -4,15 +4,15 @@
 .DEFAULT_GOAL := help
 .PHONY: help bootstrap install activate lint fmt typecheck test test-smoke test-unit \
         test-integration test-fast cov check \
-        download prep cv-naive cv-historical cv-gaussian cv-ensemble cv-recipe \
-        score score-all notebook viz clean clean-all
+        download prep cv-naive cv-historical cv-gaussian cv-ensemble cv-adaptive cv-recipe \
+        score score-all submit all notebook viz clean clean-all
 
 UV       ?= uv
 VENV     ?= .venv
 HORIZON  ?= 20
 WINDOWS  ?= 6
-MODEL    ?= naive
-MODELS   ?= naive historical gaussian
+MODEL    ?= adaptive
+MODELS   ?= naive historical gaussian ensemble adaptive
 REPORT   ?= reports
 RUN_ID   ?= latest
 
@@ -100,12 +100,15 @@ cv-gaussian: ## Cross-validate the multivariate Gaussian model
 cv-ensemble: ## Cross-validate the ensemble (gaussian + historical) model
 	$(UV) run m6 cv ensemble --horizon $(HORIZON) --n-windows $(WINDOWS)
 
+cv-adaptive: ## Cross-validate the adaptive gradient boosting model (best performer)
+	$(UV) run m6 cv adaptive --horizon $(HORIZON) --n-windows $(WINDOWS)
+
 cv-recipe: ## Cross-validate from a YAML recipe (RECIPE=configs/m6/gaussian.yaml)
 	$(UV) run m6 cv-recipe $(RECIPE) --horizon $(HORIZON) --n-windows $(WINDOWS)
 
 # ---- Scoring + report ----------------------------------------------
 
-score: ## Score CV artifacts → reports/{figures,metrics,report.md,report.html} (MODELS="naive historical gaussian")
+score: ## Score CV artifacts → reports/{figures,metrics,report.md,report.html} (MODELS="naive historical gaussian ensemble adaptive")
 	@set -e; CMD="$(UV) run m6 score --out $(REPORT) --run-id $(RUN_ID)"; \
 	for m in $(MODELS); do CMD="$$CMD --model $$m"; done; \
 	echo "$$CMD"; eval $$CMD
@@ -118,7 +121,12 @@ score-all: ## Score every CV artifact found in artifacts/ (cv_<name>.parquet)
 	for m in $$models; do CMD="$$CMD --model $$m"; done; \
 	echo "$$CMD"; eval $$CMD
 
-eval: cv-naive cv-historical cv-gaussian cv-ensemble score ## End-to-end: all models CV, then score
+eval: cv-naive cv-historical cv-gaussian cv-ensemble cv-adaptive score ## End-to-end: all models CV, then score
+
+submit: bootstrap download prep cv-adaptive score ## One-command happy path: adaptive model submission
+	@echo "\n✅ Submission pipeline complete. See reports/ for scores and metrics."
+
+all: eval ## Full pipeline: all models + score
 
 # ---- Visualisation -------------------------------------------------
 

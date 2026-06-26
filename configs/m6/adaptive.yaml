@@ -1,0 +1,20 @@
+# M6 Adaptive Gradient Boosting model recipe
+model:
+  kind: adaptive
+  description: "Cross-sectional gradient boosting with financial features, calibration, and historical blending"
+  max_iter: 120
+  learning_rate: 0.04
+  max_depth: 3
+  min_samples_leaf: 80
+  calib_strength: 0.25
+  hist_blend_alpha: 0.6
+
+task:
+  id_col: unique_id
+  time_col: ds
+  target_col: y
+  horizon: 20
+
+cv:
+  n_windows: 6
+  step_size: 20

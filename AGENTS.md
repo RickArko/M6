@@ -8,9 +8,7 @@ M6 forecasting competition focused on probabilistic (quintile) forecasting for 1
 make bootstrap     # Install uv + sync deps
 make download      # Download 100 M6 assets from Yahoo Finance
 make prep          # Build long frame with forward returns + quintiles
-make cv-naive      # CV for naive benchmark (RPS ≈ 0.16)
-make cv-historical # CV for historical frequency model
-make cv-gaussian   # CV for multivariate Gaussian model
+make cv-adaptive   # CV for adaptive gradient boosting model (best performer)
 make score         # Score all CV artifacts
 ```
 
@@ -27,6 +25,8 @@ make score         # Score all CV artifacts
 - `naive` — equal probability 0.2 (M6 baseline)
 - `historical` — empirical quintile frequencies per asset
 - `gaussian` — multivariate normal with shrinkage covariance + Monte Carlo
+- `ensemble` — simple average of gaussian + historical
+- `adaptive` — cross-sectional gradient boosting with financial features, calibration, and historical blending (best performer)
 
 ## Development
 ```bash

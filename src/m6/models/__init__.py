@@ -7,11 +7,13 @@ where p1-p5 sum to 1 per row.
 
 from __future__ import annotations
 
+from m6.models.adaptive import predict_adaptive
 from m6.models.gaussian import predict_gaussian
 from m6.models.historical import predict_historical
 from m6.models.naive import predict_naive
 
 __all__ = [
+    "predict_adaptive",
     "predict_gaussian",
     "predict_historical",
     "predict_naive",

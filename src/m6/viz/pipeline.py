@@ -16,9 +16,11 @@ from m6.evaluation import PUBLISHED_RPS as PUB_RPS
 from m6.logging import logger
 
 _COLORS = {
+    "naive": "#d29922",
     "historical": "#58a6ff",
     "gaussian": "#f778ba",
-    "naive": "#d29922",
+    "ensemble": "#a371f7",
+    "adaptive": "#3fb950",
 }
 _BG = "#0d1117"
 _TEXT = "#f0f6fc"

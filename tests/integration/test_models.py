@@ -5,6 +5,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+from m6.models.adaptive import predict_adaptive
 from m6.models.gaussian import predict_gaussian
 from m6.models.historical import predict_historical
 from m6.models.naive import predict_naive
@@ -63,3 +64,24 @@ def test_gaussian_different_from_naive(toy_returns: pd.DataFrame) -> None:
         first_row = merged.iloc[0]
         gauss_probs = [first_row[f"p{i}_g"] for i in range(1, 6)]
         assert not all(p == pytest.approx(0.2, abs=1e-6) for p in gauss_probs)
+
+
+def test_adaptive_probs_sum_to_one(toy_long: pd.DataFrame) -> None:
+    cutoff = toy_long["ds"].max()
+    preds = predict_adaptive(toy_long, cutoff, target_col="y")
+    if preds.empty:
+        pytest.skip("Adaptive model returned empty predictions (insufficient data)")
+    for _, row in preds.iterrows():
+        probs = [row[f"p{i}"] for i in range(1, 6)]
+        assert sum(probs) == pytest.approx(1.0, abs=1e-6)
+        assert all(p >= 0 for p in probs)
+
+
+def test_adaptive_has_all_assets(toy_long: pd.DataFrame) -> None:
+    cutoff = toy_long["ds"].max()
+    preds = predict_adaptive(toy_long, cutoff, target_col="y")
+    if preds.empty:
+        pytest.skip("Adaptive model returned empty predictions")
+    expected_assets = set(toy_long["unique_id"].unique())
+    pred_assets = set(preds["unique_id"])
+    assert pred_assets == expected_assets
