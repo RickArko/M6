@@ -105,6 +105,9 @@ jobs:
         run: |
           uv venv /tmp/verify-venv
           . /tmp/verify-venv/bin/activate
+          # csp-forecaster is a git-only dep via [tool.uv.sources]; the wheel
+          # metadata doesn't carry the git override, so provide it explicitly.
+          uv pip install "csp-forecaster@git+https://github.com/valeman/csp-forecaster.git"
           uv pip install dist/m6-*.whl
           python -c "import m6; print('m6 version:', m6.__version__)"
           m6 --help

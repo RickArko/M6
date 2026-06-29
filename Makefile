@@ -3,7 +3,7 @@
 
 .DEFAULT_GOAL := help
 .PHONY: help bootstrap install activate lint fmt typecheck test test-smoke test-unit \
-        test-integration test-fast cov check \
+        test-integration test-fast cov check verify-build \
         download prep cv-naive cv-historical cv-gaussian cv-ensemble cv-adaptive cv-csp \
         cv-csp-copula cv-recipe \
         score score-all submit all notebook viz clean clean-all
@@ -36,8 +36,9 @@ bootstrap: ## First-time setup (installs uv, syncs deps)
 install: ## Sync deps, install pre-commit hooks
 	$(UV) sync --all-groups
 	@if [ -d .git ]; then \
-	    echo "==> Installing pre-commit hooks"; \
+	    echo "==> Installing pre-commit & pre-push hooks"; \
 	    $(UV) run pre-commit install >/dev/null; \
+	    $(UV) run pre-commit install --hook-type pre-push >/dev/null; \
 	fi
 	@if [ ! -f .env ] && [ -f .env.example ]; then \
 	    echo "==> Seeding .env from .env.example"; \
@@ -78,6 +79,14 @@ test-fast: ## Smoke + unit (skip integration and `slow`)
 
 cov: ## Run the suite with coverage (terminal + htmlcov/)
 	$(UV) run pytest --cov=m6 --cov-report=term-missing --cov-report=html
+
+verify-build: clean ## Build wheel and verify it installs in a clean venv
+	$(UV) build
+	uv venv /tmp/m6-verify-venv
+	. /tmp/m6-verify-venv/bin/activate && uv pip install "csp-forecaster@git+https://github.com/valeman/csp-forecaster.git"
+	. /tmp/m6-verify-venv/bin/activate && uv pip install dist/m6-*.whl && python -c "import m6; print('m6 version:', m6.__version__)" && m6 --help
+	@rm -rf /tmp/m6-verify-venv
+	@echo "✅ Wheel install verified"
 
 check: lint typecheck test ## Lint + types + tests (CI entry point)
 

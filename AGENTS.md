@@ -39,6 +39,12 @@ make test-fast   # smoke + unit only
 
 ## Verification
 Always run `make check` (lint + typecheck + test) before committing.
+Run `make verify-build` to build the wheel and verify it installs in a clean venv (also runs as a `pre-push` hook).
 
 ## CI
 See `.github/workflows/ci.yml` for the GitHub Actions workflow.
+
+## Pre-commit
+- `pre-commit` hooks run on every commit: trailing whitespace, YAML/TOML checks, ruff lint+format.
+- `pre-push` hooks run on `git push`: mypy and `make verify-build` (wheel build + install check).
+- Install with `make install` or `uv run pre-commit install --hook-type pre-push`.
