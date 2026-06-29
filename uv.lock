@@ -321,6 +321,14 @@ wheels = [
 ]
 
 [[package]]
+name = "csp-forecaster"
+version = "0.1.4"
+source = { git = "https://github.com/valeman/csp-forecaster.git#893e89f9fa40273f0472f12a314d4949babb364e" }
+dependencies = [
+    { name = "numpy" },
+]
+
+[[package]]
 name = "curl-cffi"
 version = "0.15.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1113,6 +1121,7 @@ name = "m6"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "csp-forecaster" },
     { name = "loguru" },
     { name = "matplotlib" },
     { name = "numpy" },
@@ -1164,6 +1173,7 @@ serve = [
 
 [package.metadata]
 requires-dist = [
+    { name = "csp-forecaster", git = "https://github.com/valeman/csp-forecaster.git" },
     { name = "loguru", specifier = ">=0.7.2" },
     { name = "matplotlib", specifier = ">=3.9" },
     { name = "numpy", specifier = ">=2.0" },

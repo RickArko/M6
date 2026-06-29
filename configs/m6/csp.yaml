@@ -1,0 +1,17 @@
+model:
+  kind: csp
+  description: "Conformal Seasonal Pools — training-free probabilistic forecasting via conformal residuals"
+  n_samples: 5000
+  seasonal_period: 1
+  adaptive: true
+  mode: fast
+  residual_mode: h_step
+  orientation: false
+task:
+  id_col: unique_id
+  time_col: ds
+  target_col: y
+  horizon: 20
+cv:
+  n_windows: 6
+  step_size: 20

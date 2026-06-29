@@ -18,6 +18,7 @@ dependencies = [
     "pyarrow>=18.0",
     "scikit-learn>=1.5",
     "scipy>=1.14",
+    "csp-forecaster>=0.1.4",
     # --- Plumbing ---------------------------------------------------
     "typer>=0.15",
     "loguru>=0.7.2",
@@ -78,6 +79,9 @@ serve = [
 # ----------------------------------------------------------------------
 # Tooling
 # ----------------------------------------------------------------------
+[tool.uv.sources]
+csp-forecaster = { git = "https://github.com/valeman/csp-forecaster.git" }
+
 [tool.ruff]
 line-length = 110
 target-version = "py312"
@@ -106,6 +110,7 @@ files = ["src/m6"]
 module = [
     "yfinance.*",
     "pandas_datareader.*",
+    "csp_forecaster.*",
 ]
 follow_imports = "silent"
 ignore_errors = true

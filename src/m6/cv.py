@@ -19,6 +19,7 @@ from m6.data import make_cv_cutoffs
 from m6.evaluation import N_QUINTILES
 from m6.logging import logger
 from m6.models.adaptive import predict_adaptive
+from m6.models.csp import predict_csp
 from m6.models.ensemble import predict_ensemble
 from m6.models.gaussian import predict_gaussian
 from m6.models.historical import predict_historical
@@ -108,6 +109,16 @@ def _run_cv_for_model(
     result = pd.concat(folds, ignore_index=True)
     logger.info(f"cv[{model_name}]: total {len(result):,d} rows across {len(cutoffs)} folds")
     return result
+
+
+def csp_cv(
+    df: pd.DataFrame,
+    *,
+    h: int = SETTINGS.horizon,
+    n_windows: int = SETTINGS.n_windows,
+) -> pd.DataFrame:
+    """CV for the Conformal Seasonal Pools model."""
+    return _run_cv_for_model(df, "csp", h=h, n_windows=n_windows, model_fn=predict_csp)
 
 
 def naive_cv(

@@ -4,7 +4,7 @@
 .DEFAULT_GOAL := help
 .PHONY: help bootstrap install activate lint fmt typecheck test test-smoke test-unit \
         test-integration test-fast cov check \
-        download prep cv-naive cv-historical cv-gaussian cv-ensemble cv-adaptive cv-recipe \
+        download prep cv-naive cv-historical cv-gaussian cv-ensemble cv-adaptive cv-csp cv-recipe \
         score score-all submit all notebook viz clean clean-all
 
 UV       ?= uv
@@ -12,7 +12,7 @@ VENV     ?= .venv
 HORIZON  ?= 20
 WINDOWS  ?= 6
 MODEL    ?= adaptive
-MODELS   ?= naive historical gaussian ensemble adaptive
+MODELS   ?= naive historical gaussian ensemble adaptive csp
 REPORT   ?= reports
 RUN_ID   ?= latest
 
@@ -102,6 +102,9 @@ cv-ensemble: ## Cross-validate the ensemble (gaussian + historical) model
 
 cv-adaptive: ## Cross-validate the adaptive gradient boosting model (best performer)
 	$(UV) run m6 cv adaptive --horizon $(HORIZON) --n-windows $(WINDOWS)
+
+cv-csp: ## Cross-validate the Conformal Seasonal Pools model (training-free)
+	$(UV) run m6 cv csp --horizon $(HORIZON) --n-windows $(WINDOWS)
 
 cv-recipe: ## Cross-validate from a YAML recipe (RECIPE=configs/m6/gaussian.yaml)
 	$(UV) run m6 cv-recipe $(RECIPE) --horizon $(HORIZON) --n-windows $(WINDOWS)
