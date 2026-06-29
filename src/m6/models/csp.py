@@ -1,8 +1,14 @@
 """Conformal Seasonal Pools (CSP) model for M6 quintile forecasting.
 
-Fits a training-free CSP forecaster on each asset's h-day forward return series,
-then uses Monte Carlo simulation to map the independent predictive distributions
-into cross-sectional quintile probabilities.
+Fits a training-free CSP forecaster on each asset's daily return series,
+then uses Monte Carlo simulation to map the 1-step-ahead predictive
+distributions into cross-sectional quintile probabilities.
+
+Key insight: under the random walk hypothesis, the cross-sectional ordering
+of tomorrow's daily returns has the same ranking as the cumulative h-day
+total return (since scaling by horizon is monotonic). CSP captures the
+uncertainty around which assets will outperform tomorrow, which translates
+directly into uncertainty about the h-day quintile ranking.
 
 Reference: https://github.com/valeman/csp-forecaster
 """
@@ -38,17 +44,21 @@ def predict_csp(
 ) -> pd.DataFrame:
     """Predict quintile probabilities using Conformal Seasonal Pools (CSP).
 
-    For each asset, fits CSP on the history of h-day forward returns and
-    generates predictive samples. Cross-sectional quintiles are estimated
-    via Monte Carlo: for each draw, all assets are ranked and binned.
+    For each asset, fits CSP on the daily return series and predicts the
+    1-step-ahead (next-day) return distribution. Cross-sectional quintile
+    probabilities are estimated via Monte Carlo: for each draw, all assets
+    are ranked by their sampled next-day return and assigned to quintiles,
+    then averaged across draws.
 
     Args:
-        df: Full long frame with price history and forward returns.
+        df: Full long frame with daily return history.
         cutoff: Forecast origin (trading date).
-        h: Forecast horizon in trading days.
+        h: Forecast horizon in trading days (used for cross-sectional
+           quintile mapping; under the random walk the daily return
+           ordering is a proxy for the h-day return ordering).
         id_col: Column identifying each asset.
         time_col: Column with trading dates.
-        target_col: Column with daily returns (used for feature engineering).
+        target_col: Column with daily returns.
         n_samples: Number of Monte Carlo draws per asset.
 
     Returns:
@@ -64,14 +74,9 @@ def predict_csp(
 
     for ticker in tickers:
         asset = history[history[id_col] == ticker].sort_values(time_col)
-        prices = asset["price"].to_numpy(dtype=np.float64)
+        daily_ret = asset[target_col].to_numpy(dtype=np.float64)
 
-        if len(prices) < h + 5:
-            continue
-
-        fwd_rets = prices[h:] / prices[:-h] - 1.0
-
-        if len(fwd_rets) < 10:
+        if len(daily_ret) < 10:
             continue
 
         csp = ConformalSeasonalPool(
@@ -81,7 +86,7 @@ def predict_csp(
             orientation=False,
             random_state=SETTINGS.seed,
         )
-        csp.fit(fwd_rets, seasonal_period=1)
+        csp.fit(daily_ret, seasonal_period=1)
         result = csp.predict(H=1, n_samples=n_samples)
         asset_samples[ticker] = result.samples[0]
 
@@ -90,10 +95,9 @@ def predict_csp(
 
     tickers_list = list(asset_samples.keys())
     n_assets = len(tickers_list)
-    n_sim = n_samples
 
     quintile_counts = np.zeros((n_assets, 5), dtype=np.float64)
-    for i in range(n_sim):
+    for i in range(n_samples):
         draw = np.array([asset_samples[t][i] for t in tickers_list], dtype=np.float64)
         ranks = np.argsort(np.argsort(draw))
         q_idx = np.floor(ranks / n_assets * 5).astype(int).clip(0, 4)

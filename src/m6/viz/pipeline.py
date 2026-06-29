@@ -21,6 +21,7 @@ _COLORS = {
     "gaussian": "#f778ba",
     "ensemble": "#a371f7",
     "adaptive": "#3fb950",
+    "csp": "#56d4dd",
 }
 _BG = "#0d1117"
 _TEXT = "#f0f6fc"
