@@ -20,6 +20,7 @@ from m6.evaluation import N_QUINTILES
 from m6.logging import logger
 from m6.models.adaptive import predict_adaptive
 from m6.models.csp import predict_csp
+from m6.models.csp_copula import predict_csp_copula
 from m6.models.ensemble import predict_ensemble
 from m6.models.gaussian import predict_gaussian
 from m6.models.historical import predict_historical
@@ -119,6 +120,16 @@ def csp_cv(
 ) -> pd.DataFrame:
     """CV for the Conformal Seasonal Pools model."""
     return _run_cv_for_model(df, "csp", h=h, n_windows=n_windows, model_fn=predict_csp)
+
+
+def csp_copula_cv(
+    df: pd.DataFrame,
+    *,
+    h: int = SETTINGS.horizon,
+    n_windows: int = SETTINGS.n_windows,
+) -> pd.DataFrame:
+    """CV for the CSP copula model."""
+    return _run_cv_for_model(df, "csp_copula", h=h, n_windows=n_windows, model_fn=predict_csp_copula)
 
 
 def naive_cv(

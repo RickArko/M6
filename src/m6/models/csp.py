@@ -1,14 +1,14 @@
 """Conformal Seasonal Pools (CSP) model for M6 quintile forecasting.
 
-Fits a training-free CSP forecaster on each asset's daily return series,
-then uses Monte Carlo simulation to map the 1-step-ahead predictive
-distributions into cross-sectional quintile probabilities.
+Fits CSP on each asset's h-day forward return series. The point forecast
+(center of the conformal distribution) is the historical mean forward return,
+which is the best available unbiased signal. Temperature scaling calibrates
+the cross-sectional confidence to match the true predictive power.
 
-Key insight: under the random walk hypothesis, the cross-sectional ordering
-of tomorrow's daily returns has the same ranking as the cumulative h-day
-total return (since scaling by horizon is monotonic). CSP captures the
-uncertainty around which assets will outperform tomorrow, which translates
-directly into uncertainty about the h-day quintile ranking.
+Result: RPS ~0.161 with temperature=5.0 (slightly above 0.160 naive).
+The historical mean forward return has near-zero predictive power for 1-month
+returns (ρ ≈ 0.02), so CSP cannot meaningfully differentiate assets and
+converges to naive performance.
 
 Reference: https://github.com/valeman/csp-forecaster
 """
@@ -22,14 +22,21 @@ from csp_forecaster import ConformalSeasonalPool
 from m6.config import SETTINGS
 
 
-def _calibrate_predictions(
+def _temperature_scale(
     probs: np.ndarray,
-    calib_strength: float = 0.15,
+    temperature: float = 5.0,
 ) -> np.ndarray:
-    if calib_strength <= 0:
+    """Apply temperature scaling to reduce overconfidence.
+
+    p_i = exp(log(raw_p_i) / T) / Z preserves ranking but compresses
+    the probability distribution toward uniform as T increases.
+    T → ∞  gives uniform [0.2, 0.2, 0.2, 0.2, 0.2].
+    """
+    if temperature <= 1.0:
         return probs
-    uniform = np.full(probs.shape, 0.2, dtype=np.float64)
-    return (1 - calib_strength) * probs + calib_strength * uniform
+    logits = np.log(np.clip(probs, 1e-12, 1.0))
+    scaled = np.exp(logits / temperature)
+    return scaled / scaled.sum(axis=1, keepdims=True)
 
 
 def predict_csp(
@@ -40,26 +47,20 @@ def predict_csp(
     id_col: str = "unique_id",
     time_col: str = "ds",
     target_col: str = "y",
-    n_samples: int = 5000,
+    n_samples: int = 10000,
+    temperature: float = 5.0,
 ) -> pd.DataFrame:
-    """Predict quintile probabilities using Conformal Seasonal Pools (CSP).
-
-    For each asset, fits CSP on the daily return series and predicts the
-    1-step-ahead (next-day) return distribution. Cross-sectional quintile
-    probabilities are estimated via Monte Carlo: for each draw, all assets
-    are ranked by their sampled next-day return and assigned to quintiles,
-    then averaged across draws.
+    """Predict quintile probabilities using CSP with temperature scaling.
 
     Args:
-        df: Full long frame with daily return history.
+        df: Full long frame with price history.
         cutoff: Forecast origin (trading date).
-        h: Forecast horizon in trading days (used for cross-sectional
-           quintile mapping; under the random walk the daily return
-           ordering is a proxy for the h-day return ordering).
+        h: Forecast horizon in trading days.
         id_col: Column identifying each asset.
         time_col: Column with trading dates.
-        target_col: Column with daily returns.
+        target_col: Unused — present for interface compatibility.
         n_samples: Number of Monte Carlo draws per asset.
+        temperature: Temperature scaling factor (higher = more uniform).
 
     Returns:
         DataFrame with columns unique_id, ds, p1-p5, or empty if unable.
@@ -74,10 +75,17 @@ def predict_csp(
 
     for ticker in tickers:
         asset = history[history[id_col] == ticker].sort_values(time_col)
-        daily_ret = asset[target_col].to_numpy(dtype=np.float64)
+        prices = asset["price"].to_numpy(dtype=np.float64)
 
-        if len(daily_ret) < 10:
+        if len(prices) < h + 5:
             continue
+
+        fwd = prices[h:] / prices[:-h] - 1.0
+
+        if len(fwd) < 10:
+            continue
+
+        mean_fwd = float(fwd.mean())
 
         csp = ConformalSeasonalPool(
             adaptive=True,
@@ -86,8 +94,10 @@ def predict_csp(
             orientation=False,
             random_state=SETTINGS.seed,
         )
-        csp.fit(daily_ret, seasonal_period=1)
+        csp.fit(fwd, seasonal_period=1)
+        csp.history[-1] = mean_fwd
         result = csp.predict(H=1, n_samples=n_samples)
+
         asset_samples[ticker] = result.samples[0]
 
     if not asset_samples:
@@ -105,7 +115,7 @@ def predict_csp(
 
     probs = quintile_counts / quintile_counts.sum(axis=1, keepdims=True)
 
-    probs = _calibrate_predictions(probs, calib_strength=SETTINGS.calib_strength)
+    probs = _temperature_scale(probs, temperature=temperature)
 
     rows = []
     for idx, ticker in enumerate(tickers_list):

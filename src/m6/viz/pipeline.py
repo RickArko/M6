@@ -22,6 +22,7 @@ _COLORS = {
     "ensemble": "#a371f7",
     "adaptive": "#3fb950",
     "csp": "#56d4dd",
+    "csp_copula": "#f0883e",
 }
 _BG = "#0d1117"
 _TEXT = "#f0f6fc"

@@ -89,7 +89,7 @@ def cv(
     long_path: Path = typer.Option(None, help="Path to processed long parquet."),
 ) -> None:
     """Run reproducible rolling-origin cross-validation."""
-    from m6.cv import adaptive_cv, csp_cv, ensemble_cv, gaussian_cv, historical_cv, naive_cv
+    from m6.cv import adaptive_cv, csp_copula_cv, csp_cv, ensemble_cv, gaussian_cv, historical_cv, naive_cv
     from m6.evaluation import rps_for_models
 
     long_path = long_path or SETTINGS.processed_dir / "long.parquet"
@@ -103,11 +103,12 @@ def cv(
         "ensemble": ensemble_cv,
         "adaptive": adaptive_cv,
         "csp": csp_cv,
+        "csp_copula": csp_copula_cv,
     }
     cv_fn = model_map.get(model)
     if cv_fn is None:
         raise typer.BadParameter(
-            f"Unknown model: {model!r}. Use 'naive', 'historical', 'gaussian', 'ensemble', or 'adaptive'."
+            f"Unknown model: {model!r}. Use 'naive', 'historical', 'gaussian', 'ensemble', 'adaptive', 'csp', or 'csp_copula'."
         )
 
     cv_df = cv_fn(df, h=horizon, n_windows=n_windows)
@@ -275,6 +276,7 @@ def forecast(
     """Train on all available data and emit a future forecast."""
     from m6.models.adaptive import predict_adaptive
     from m6.models.csp import predict_csp
+    from m6.models.csp_copula import predict_csp_copula
     from m6.models.gaussian import predict_gaussian
     from m6.models.historical import predict_historical
     from m6.models.naive import predict_naive
@@ -292,6 +294,7 @@ def forecast(
         "gaussian": predict_gaussian,
         "adaptive": predict_adaptive,
         "csp": predict_csp,
+        "csp_copula": predict_csp_copula,
     }
     fn = model_map.get(model)
     if fn is None:
