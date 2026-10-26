@@ -5,11 +5,13 @@ M6 forecasting competition focused on probabilistic (quintile) forecasting for 1
 
 ## Quick Start
 ```bash
-make bootstrap     # Install uv + sync deps
-make download      # Download 100 M6 assets from Yahoo Finance
-make prep          # Build long frame with forward returns + quintiles
-make cv-adaptive   # CV for adaptive gradient boosting model (best performer)
-make score         # Score all CV artifacts
+make submit         # Happy path: bootstrap → download → prep → cv-adaptive → score
+# or step-by-step:
+make bootstrap      # Install uv + sync deps
+make download       # Download 100 M6 assets from Yahoo Finance
+make prep           # Build long frame with forward returns + quintiles
+make cv-adaptive    # CV for adaptive gradient boosting model (best performer)
+make score          # Score available CV artifacts (auto-discovers)
 ```
 
 ## Key Architecture
@@ -27,6 +29,7 @@ make score         # Score all CV artifacts
 - `gaussian` — multivariate normal with shrinkage covariance + Monte Carlo
 - `ensemble` — simple average of gaussian + historical
 - `adaptive` — cross-sectional gradient boosting with financial features, calibration, and historical blending (best performer)
+- `csp` / `csp_copula` — conformal seasonal pools (± Gaussian copula); included in `make all`
 
 ## Development
 ```bash

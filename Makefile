@@ -6,16 +6,20 @@
         test-integration test-fast cov check verify-build \
         download prep cv-naive cv-historical cv-gaussian cv-ensemble cv-adaptive cv-csp \
         cv-csp-copula cv-recipe \
-        score score-all submit all notebook viz clean clean-all
+        score score-all eval submit all notebook viz clean clean-all
 
 UV       ?= uv
 VENV     ?= .venv
 HORIZON  ?= 20
 WINDOWS  ?= 6
 MODEL    ?= adaptive
-MODELS   ?= naive historical gaussian ensemble adaptive csp csp_copula
+# Empty → score auto-discovers artifacts/cv_*.parquet. Override to pin a subset, e.g. MODELS=adaptive
+MODELS   ?=
+CORE_MODELS := naive historical gaussian ensemble adaptive
+ALL_MODELS  := $(CORE_MODELS) csp csp_copula
 REPORT   ?= reports
 RUN_ID   ?= latest
+PROCESSED := data/processed/long.parquet
 
 export UV_PROJECT_ENVIRONMENT := $(VENV)
 export PYTHONWARNINGS := ignore::SyntaxWarning
@@ -98,51 +102,61 @@ download: ## Download M6 price data from Yahoo Finance
 prep: ## Build the long-format training parquet
 	$(UV) run m6 prep
 
-cv-naive: ## Cross-validate the naive equal-probability benchmark
+$(PROCESSED):
+	@$(MAKE) prep
+
+cv-naive: $(PROCESSED) ## Cross-validate the naive equal-probability benchmark
 	$(UV) run m6 cv naive --horizon $(HORIZON) --n-windows $(WINDOWS)
 
-cv-historical: ## Cross-validate the historical-frequency model
+cv-historical: $(PROCESSED) ## Cross-validate the historical-frequency model
 	$(UV) run m6 cv historical --horizon $(HORIZON) --n-windows $(WINDOWS)
 
-cv-gaussian: ## Cross-validate the multivariate Gaussian model
+cv-gaussian: $(PROCESSED) ## Cross-validate the multivariate Gaussian model
 	$(UV) run m6 cv gaussian --horizon $(HORIZON) --n-windows $(WINDOWS)
 
-cv-ensemble: ## Cross-validate the ensemble (gaussian + historical) model
+cv-ensemble: $(PROCESSED) ## Cross-validate the ensemble (gaussian + historical) model
 	$(UV) run m6 cv ensemble --horizon $(HORIZON) --n-windows $(WINDOWS)
 
-cv-adaptive: ## Cross-validate the adaptive gradient boosting model (best performer)
+cv-adaptive: $(PROCESSED) ## Cross-validate the adaptive gradient boosting model (best performer)
 	$(UV) run m6 cv adaptive --horizon $(HORIZON) --n-windows $(WINDOWS)
 
-cv-csp: ## Cross-validate the Conformal Seasonal Pools model (training-free)
+cv-csp: $(PROCESSED) ## Cross-validate the Conformal Seasonal Pools model (training-free)
 	$(UV) run m6 cv csp --horizon $(HORIZON) --n-windows $(WINDOWS)
 
-cv-csp-copula: ## Cross-validate CSP + Gaussian copula hybrid
+cv-csp-copula: $(PROCESSED) ## Cross-validate CSP + Gaussian copula hybrid
 	$(UV) run m6 cv csp_copula --horizon $(HORIZON) --n-windows $(WINDOWS)
 
-cv-recipe: ## Cross-validate from a YAML recipe (RECIPE=configs/m6/gaussian.yaml)
+cv-recipe: $(PROCESSED) ## Cross-validate from a YAML recipe (RECIPE=configs/m6/gaussian.yaml)
 	$(UV) run m6 cv-recipe $(RECIPE) --horizon $(HORIZON) --n-windows $(WINDOWS)
 
 # ---- Scoring + report ----------------------------------------------
 
-score: ## Score CV artifacts → reports/{figures,metrics,report.md,report.html} (MODELS="naive historical gaussian ensemble adaptive")
-	@set -e; CMD="$(UV) run m6 score --out $(REPORT) --run-id $(RUN_ID)"; \
-	for m in $(MODELS); do CMD="$$CMD --model $$m"; done; \
-	echo "$$CMD"; eval $$CMD
-
-score-all: ## Score every CV artifact found in artifacts/ (cv_<name>.parquet)
+score: ## Score CV artifacts → reports/ (auto-discovers; or MODELS="naive adaptive …")
 	@set -e; \
-	models=$$(ls artifacts/cv_*.parquet 2>/dev/null | sed -e 's|artifacts/cv_||' -e 's|\.parquet$$||'); \
-	if [ -z "$$models" ]; then echo "No artifacts/cv_*.parquet found — run a cv-* target first." >&2; exit 1; fi; \
+	if [ -n "$(strip $(MODELS))" ]; then \
+	  models="$(MODELS)"; \
+	else \
+	  models=$$(ls artifacts/cv_*.parquet 2>/dev/null | sed -e 's|artifacts/cv_||' -e 's|\.parquet$$||'); \
+	fi; \
+	if [ -z "$$models" ]; then \
+	  echo "No artifacts/cv_*.parquet found — run a cv-* target first (or set MODELS=…)." >&2; \
+	  exit 1; \
+	fi; \
 	CMD="$(UV) run m6 score --out $(REPORT) --run-id $(RUN_ID)"; \
 	for m in $$models; do CMD="$$CMD --model $$m"; done; \
 	echo "$$CMD"; eval $$CMD
 
-eval: cv-naive cv-historical cv-gaussian cv-ensemble cv-adaptive score ## End-to-end: all models CV, then score
+score-all: score ## Alias: score every CV artifact found in artifacts/
 
-submit: bootstrap download prep cv-adaptive score ## One-command happy path: adaptive model submission
+eval: download prep cv-naive cv-historical cv-gaussian cv-ensemble cv-adaptive ## Core models CV, then score
+	$(MAKE) score MODELS="$(CORE_MODELS)"
+
+submit: bootstrap download prep cv-adaptive ## One-command happy path: adaptive model + score
+	$(MAKE) score MODELS=adaptive
 	@echo "\n✅ Submission pipeline complete. See reports/ for scores and metrics."
 
-all: eval ## Full pipeline: all models + score
+all: download prep cv-naive cv-historical cv-gaussian cv-ensemble cv-adaptive cv-csp cv-csp-copula ## Full pipeline: all models + score
+	$(MAKE) score MODELS="$(ALL_MODELS)"
 
 # ---- Visualisation -------------------------------------------------
 
