@@ -21,10 +21,16 @@ make submit
 
 Bootstraps the environment, downloads data, builds the training frame, runs the adaptive model, and scores the result.
 
-For the full pipeline including all baseline models:
+For the full pipeline (all models including CSP variants):
 
 ```bash
 make all
+```
+
+Core baselines only (no CSP):
+
+```bash
+make eval
 ```
 
 ---
@@ -36,15 +42,17 @@ make bootstrap      # Install uv + sync deps
 make download       # Download 100 M6 assets from Yahoo Finance
 make prep           # Build long-format training frame
 make cv-adaptive    # Run adaptive model CV (best performer)
-make score          # Score CV artifacts
+make score          # Score available CV artifacts (auto-discovers)
 make check          # lint + typecheck + test (CI entry point)
 ```
+
+`make score` scores whatever `artifacts/cv_*.parquet` files exist. Pin a subset with `make score MODELS="naive adaptive"`.
 
 ---
 
 ## Architecture
 
-- `src/m6/models/` — `naive`, `historical`, `gaussian`, `ensemble`, `adaptive`
+- `src/m6/models/` — `naive`, `historical`, `gaussian`, `ensemble`, `adaptive`, `csp`, `csp_copula`
 - `configs/m6/` — YAML recipes
 - `Makefile` — canonical entrypoint wrapping `uv run m6 ...`
 
